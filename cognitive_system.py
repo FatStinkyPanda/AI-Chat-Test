@@ -16,6 +16,8 @@ from vector_memory import VectorMemory
 from dynamic_responder import DynamicResponder
 from reasoning_engine import ReasoningEngine
 from deliberation_engine import DeliberationEngine
+from enhanced_reasoner import EnhancedReasoner
+from intelligent_responder import IntelligentResponder
 
 
 class CognitiveSystem:
@@ -36,7 +38,16 @@ class CognitiveSystem:
         self.context_manager = ContextManager(self.semantic_processor)
         self.responder = DynamicResponder()
         self.reasoning_engine = ReasoningEngine()
-        self.deliberation_engine = DeliberationEngine(self.reasoning_engine)
+
+        # Enhanced learning and reasoning (NEW!)
+        self.enhanced_reasoner = EnhancedReasoner()
+        self.intelligent_responder = IntelligentResponder()
+
+        # Deliberation engine with enhanced reasoning
+        self.deliberation_engine = DeliberationEngine(
+            self.reasoning_engine,
+            self.enhanced_reasoner
+        )
 
         # System state
         self.state_file = state_file
@@ -155,8 +166,8 @@ class CognitiveSystem:
         # 9. LEARNING: Update patterns and associations
         self._learn_patterns(user_input, relevant_memories)
 
-        # 10. GENERATION: Generate response based on deliberation
-        response = self._generate_response(
+        # 10. GENERATION: Generate intelligent response based on deliberation
+        response = self._generate_intelligent_response(
             user_input,
             input_embedding,
             input_emotions,
@@ -168,11 +179,18 @@ class CognitiveSystem:
         # 11. STORE RESPONSE
         self._store_response(response, input_embedding, input_emotions)
 
-        # 12. MEMORY CONSOLIDATION
+        # 12. LEARNING: Learn from this conversation turn (ENHANCED!)
+        self.enhanced_reasoner.learn_from_conversation(
+            user_input=user_input,
+            ai_response=response,
+            memories=relevant_memories
+        )
+
+        # 13. MEMORY CONSOLIDATION
         self.brain.decay_activations(rate=0.05)
         self.brain.update_working_memory(node_id)
 
-        # 13. PERIODIC SAVE
+        # 14. PERIODIC SAVE
         if self.turn_count % 10 == 0:
             self._save_state()
 
@@ -471,6 +489,47 @@ class CognitiveSystem:
 
         return thought_node_ids
 
+    def _generate_intelligent_response(self, user_input: str,
+                                      input_embedding: np.ndarray,
+                                      input_emotions: Dict[EmotionalValence, float],
+                                      relevant_memories: List[Dict],
+                                      reasoning_paths: List[List[MemoryNode]],
+                                      deliberation_result=None) -> str:
+        """
+        Generate intelligent response using enhanced reasoning
+        The AI decides what to say based on deep understanding
+        """
+
+        if deliberation_result and deliberation_result.response_strategy:
+            # Use intelligent responder with enhanced understanding
+            understanding = {
+                'user_said': user_input,
+                'keywords': self.semantic_processor.extract_keywords(user_input, top_n=5),
+                'emotions': input_emotions,
+                'memories': relevant_memories,
+            }
+
+            response = self.intelligent_responder.generate_response(
+                user_input=user_input,
+                understanding=understanding,
+                inferences=deliberation_result.enhanced_inferences or [],
+                associations=deliberation_result.associations or [],
+                strategy=deliberation_result.response_strategy,
+                memories=relevant_memories
+            )
+        else:
+            # Fallback to dynamic responder
+            response = self.responder.construct_response(
+                user_input=user_input,
+                relevant_memories=relevant_memories,
+                input_emotions=input_emotions,
+                reasoning_paths=reasoning_paths,
+                turn_count=self.turn_count,
+                deliberation_result=deliberation_result
+            )
+
+        return response
+
     def _generate_response(self, user_input: str,
                           input_embedding: np.ndarray,
                           input_emotions: Dict[EmotionalValence, float],
@@ -478,21 +537,13 @@ class CognitiveSystem:
                           reasoning_paths: List[List[MemoryNode]],
                           deliberation_result=None) -> str:
         """
-        Generate a response based on all cognitive processes
-        Uses dynamic responder for natural, intelligent conversation
-        Now includes deliberation results from autonomous thinking
+        DEPRECATED: Use _generate_intelligent_response instead
+        Kept for backwards compatibility
         """
-        # Use the dynamic responder to construct a natural response
-        response = self.responder.construct_response(
-            user_input=user_input,
-            relevant_memories=relevant_memories,
-            input_emotions=input_emotions,
-            reasoning_paths=reasoning_paths,
-            turn_count=self.turn_count,
-            deliberation_result=deliberation_result  # Pass deliberation insights
+        return self._generate_intelligent_response(
+            user_input, input_embedding, input_emotions,
+            relevant_memories, reasoning_paths, deliberation_result
         )
-
-        return response
 
     def _store_response(self, response: str, input_embedding: np.ndarray,
                        input_emotions: Dict[EmotionalValence, float]):

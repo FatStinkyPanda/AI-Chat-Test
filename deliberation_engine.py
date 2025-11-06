@@ -32,16 +32,21 @@ class DeliberationResult:
     stopping_reason: str
     key_insights: List[str]
     response_direction: str  # Suggested direction for response
+    associations: List[Dict] = None  # NEW: Intelligent associations found
+    enhanced_inferences: List[str] = None  # NEW: Enhanced inferences
+    response_strategy: Dict = None  # NEW: Strategy for response
 
 
 class DeliberationEngine:
     """
     Manages the AI's internal thinking process
     Decides autonomously when enough thinking has been done
+    Now uses enhanced reasoning for smarter thinking
     """
 
-    def __init__(self, reasoning_engine):
+    def __init__(self, reasoning_engine, enhanced_reasoner=None):
         self.reasoning_engine = reasoning_engine
+        self.enhanced_reasoner = enhanced_reasoner  # New enhanced reasoning
 
         # Deliberation parameters
         self.min_iterations = 1
@@ -64,12 +69,30 @@ class DeliberationEngine:
         3. Evaluate its own understanding
         4. Decide when it has thought enough
         5. Return its deliberation results
+
+        NOW ENHANCED: Uses intelligent association finding and inference generation
         """
 
         iterations = []
         previous_insights = set()
+        all_associations = []
+        all_inferences = []
 
-        print(f"\n[Deliberation] Starting internal thinking process...")
+        print(f"\n[Deliberation] Starting enhanced thinking process...")
+
+        # Use enhanced reasoner if available
+        if self.enhanced_reasoner:
+            # Find intelligent associations
+            all_associations = self.enhanced_reasoner.find_intelligent_associations(
+                user_input, relevant_memories
+            )
+            print(f"[Enhanced] Found {len(all_associations)} intelligent associations")
+
+            # Generate conversational inferences
+            all_inferences = self.enhanced_reasoner.generate_conversational_inferences(
+                user_input, relevant_memories, all_associations
+            )
+            print(f"[Enhanced] Generated {len(all_inferences)} conversational inferences")
 
         for i in range(self.max_iterations):
             iteration_num = i + 1
@@ -80,7 +103,9 @@ class DeliberationEngine:
                 user_input=user_input,
                 memories=relevant_memories,
                 previous_iterations=iterations,
-                emotional_context=emotional_context
+                emotional_context=emotional_context,
+                associations=all_associations,
+                enhanced_inferences=all_inferences
             )
 
             iterations.append(iteration_result)
@@ -115,7 +140,10 @@ class DeliberationEngine:
                         iterations=iterations,
                         readiness_score=readiness_score,
                         stopping_reason=reason,
-                        user_input=user_input
+                        user_input=user_input,
+                        relevant_memories=relevant_memories,
+                        associations=all_associations,
+                        enhanced_inferences=all_inferences
                     )
 
                     return result
@@ -131,7 +159,10 @@ class DeliberationEngine:
             iterations=iterations,
             readiness_score=final_iteration.confidence,
             stopping_reason=f"Reached maximum {self.max_iterations} thinking iterations",
-            user_input=user_input
+            user_input=user_input,
+            relevant_memories=relevant_memories,
+            associations=all_associations,
+            enhanced_inferences=all_inferences
         )
 
         return result
@@ -140,9 +171,12 @@ class DeliberationEngine:
                         user_input: str,
                         memories: List[Dict],
                         previous_iterations: List[ThinkingIteration],
-                        emotional_context: Dict) -> ThinkingIteration:
+                        emotional_context: Dict,
+                        associations: List[Dict] = None,
+                        enhanced_inferences: List[str] = None) -> ThinkingIteration:
         """
         Perform one iteration of thinking
+        NOW ENHANCED: Uses intelligent associations and inferences
         """
 
         # Build context from previous thinking
@@ -151,11 +185,16 @@ class DeliberationEngine:
             previous_iterations=previous_iterations
         )
 
-        # Generate inferences
-        inferences = self.reasoning_engine.perform_inference(
-            memories=memories,
-            current_context=thinking_context
-        )
+        # Use enhanced inferences if available, otherwise fallback to reasoning engine
+        if enhanced_inferences and len(enhanced_inferences) > 0:
+            # Convert string inferences to Inference objects for compatibility
+            inferences = enhanced_inferences  # Use as-is, they're more useful as strings
+        else:
+            # Generate inferences using reasoning engine
+            inferences = self.reasoning_engine.perform_inference(
+                memories=memories,
+                current_context=thinking_context
+            )
 
         # Identify information gaps
         gaps = self.reasoning_engine.identify_information_gaps(
@@ -170,7 +209,8 @@ class DeliberationEngine:
             inferences=inferences,
             gaps=gaps,
             emotional_context=emotional_context,
-            previous_iterations=previous_iterations
+            previous_iterations=previous_iterations,
+            associations=associations
         )
 
         # Calculate confidence for this iteration
@@ -215,24 +255,38 @@ class DeliberationEngine:
                                        inferences: List,
                                        gaps: List,
                                        emotional_context: Dict,
-                                       previous_iterations: List[ThinkingIteration]) -> List[str]:
+                                       previous_iterations: List[ThinkingIteration],
+                                       associations: List[Dict] = None) -> List[str]:
         """
         Generate thoughts during deliberation
         These are different from response - they're internal thinking
+        NOW ENHANCED: Uses associations and string-based inferences
         """
 
         thoughts = []
 
-        # Think about inferences
+        # Think about inferences (now they can be strings from enhanced reasoner)
         if inferences:
-            top_inference = inferences[0]
-            thought = f"Considering: {top_inference.conclusion}"
-            thoughts.append(thought)
-
-            if top_inference.confidence > 0.7:
-                thoughts.append(f"This seems quite certain ({top_inference.reasoning_type} reasoning)")
+            if isinstance(inferences[0], str):
+                # Enhanced string inferences
+                top_inference = inferences[0]
+                thoughts.append(f"Understanding: {top_inference}")
             else:
-                thoughts.append(f"This is somewhat uncertain (confidence: {top_inference.confidence:.2f})")
+                # Traditional Inference objects
+                top_inference = inferences[0]
+                thought = f"Considering: {top_inference.conclusion}"
+                thoughts.append(thought)
+
+                if top_inference.confidence > 0.7:
+                    thoughts.append(f"This seems quite certain ({top_inference.reasoning_type} reasoning)")
+                else:
+                    thoughts.append(f"This is somewhat uncertain (confidence: {top_inference.confidence:.2f})")
+
+        # Think about associations
+        if associations:
+            strong_assocs = [a for a in associations if a.get('association_strength', 0) > 0.5]
+            if strong_assocs:
+                thoughts.append(f"Found {len(strong_assocs)} strong connections to past conversations")
 
         # Think about gaps
         if gaps:
@@ -268,6 +322,7 @@ class DeliberationEngine:
                                emotional_context: Dict) -> str:
         """
         Plan what kind of response would be appropriate
+        NOW HANDLES: String inferences from enhanced reasoner
         """
 
         approaches = []
@@ -275,8 +330,14 @@ class DeliberationEngine:
         if gaps and len(gaps) > 2:
             approaches.append("Should ask clarifying questions")
 
-        if inferences and any(inf.confidence > 0.75 for inf in inferences):
-            approaches.append("Can share confident insights")
+        # Handle both string and Inference object inferences
+        if inferences:
+            if isinstance(inferences[0], str):
+                # Enhanced string inferences - having multiple means we understand well
+                if len(inferences) >= 3:
+                    approaches.append("Can share confident insights")
+            elif any(hasattr(inf, 'confidence') and inf.confidence > 0.75 for inf in inferences):
+                approaches.append("Can share confident insights")
 
         if emotional_context:
             high_emotion = any(v > 0.5 for v in emotional_context.values())
@@ -297,14 +358,21 @@ class DeliberationEngine:
         """
         Calculate confidence level for this iteration
         Higher confidence = better understanding
+        NOW HANDLES: String inferences from enhanced reasoner
         """
 
         base_confidence = 0.5
 
         # More high-confidence inferences = higher confidence
         if inferences:
-            avg_inference_conf = sum(inf.confidence for inf in inferences) / len(inferences)
-            base_confidence += avg_inference_conf * 0.3
+            if isinstance(inferences[0], str):
+                # String inferences from enhanced reasoner
+                # Having inferences means we understood something
+                base_confidence += 0.3 * min(1.0, len(inferences) * 0.2)
+            else:
+                # Traditional Inference objects with confidence scores
+                avg_inference_conf = sum(inf.confidence for inf in inferences) / len(inferences)
+                base_confidence += avg_inference_conf * 0.3
 
         # Fewer gaps = higher confidence
         gap_penalty = min(0.2, len(gaps) * 0.05)
@@ -326,13 +394,17 @@ class DeliberationEngine:
     def _extract_insight_keys(self, iteration: ThinkingIteration) -> set:
         """
         Extract key insights from an iteration for tracking novelty
+        NOW HANDLES: String inferences from enhanced reasoner
         """
 
         insights = set()
 
-        # Add inference conclusions
+        # Add inference conclusions (handle both string and Inference objects)
         for inf in iteration.inferences:
-            insights.add(inf.conclusion[:50])  # First 50 chars as key
+            if isinstance(inf, str):
+                insights.add(inf[:50])  # First 50 chars as key
+            elif hasattr(inf, 'conclusion'):
+                insights.add(inf.conclusion[:50])  # First 50 chars as key
 
         # Add gap topics
         for gap in iteration.information_gaps:
@@ -414,34 +486,57 @@ class DeliberationEngine:
     def _compile_results(self, iterations: List[ThinkingIteration],
                         readiness_score: float,
                         stopping_reason: str,
-                        user_input: str) -> DeliberationResult:
+                        user_input: str,
+                        relevant_memories: List[Dict] = None,
+                        associations: List[Dict] = None,
+                        enhanced_inferences: List[str] = None) -> DeliberationResult:
         """
         Compile the results of deliberation
+        NOW ENHANCED: Uses enhanced reasoner for response strategy
         """
 
         final_iteration = iterations[-1]
 
         # Extract key insights from all iterations
         key_insights = []
+
+        # Prefer enhanced inferences
+        if enhanced_inferences:
+            key_insights.extend(enhanced_inferences[:5])
+
+        # Add insights from iterations
         for iteration in iterations:
-            # Most confident inferences
+            # Handle both string inferences and Inference objects
             for inf in iteration.inferences[:2]:
-                if inf.confidence > 0.6:
+                if isinstance(inf, str):
+                    key_insights.append(inf)
+                elif hasattr(inf, 'confidence') and inf.confidence > 0.6:
                     key_insights.append(inf.conclusion)
 
             # Important thoughts
             for thought in iteration.thoughts[:2]:
-                if "approach" in thought.lower() or "considering" in thought.lower():
+                if "approach" in thought.lower() or "understanding" in thought.lower():
                     key_insights.append(thought)
 
         # Deduplicate
         key_insights = list(dict.fromkeys(key_insights))[:5]
 
-        # Determine response direction
-        response_direction = self._determine_response_direction(
-            iterations=iterations,
-            user_input=user_input
-        )
+        # Determine response direction and strategy using enhanced reasoner
+        if self.enhanced_reasoner:
+            response_strategy = self.enhanced_reasoner.decide_response_strategy(
+                user_input=user_input,
+                inferences=enhanced_inferences or [],
+                associations=associations or [],
+                confidence=final_iteration.confidence
+            )
+            response_direction = response_strategy.get('approach', 'engage')
+        else:
+            # Fallback to original method
+            response_direction = self._determine_response_direction(
+                iterations=iterations,
+                user_input=user_input
+            )
+            response_strategy = {'approach': response_direction}
 
         return DeliberationResult(
             total_iterations=len(iterations),
@@ -450,7 +545,10 @@ class DeliberationEngine:
             readiness_score=readiness_score,
             stopping_reason=stopping_reason,
             key_insights=key_insights,
-            response_direction=response_direction
+            response_direction=response_direction,
+            associations=associations,
+            enhanced_inferences=enhanced_inferences,
+            response_strategy=response_strategy
         )
 
     def _determine_response_direction(self, iterations: List[ThinkingIteration],
