@@ -38,9 +38,13 @@ class VectorMemory:
 
         if self.use_chromadb:
             # Initialize ChromaDB with persistent storage
+            # Keep full capabilities - suppress error output at OS level if needed
+            import warnings
+            warnings.filterwarnings('ignore', category=DeprecationWarning)
+
             self.client = chromadb.Client(Settings(
                 persist_directory=persist_directory,
-                anonymized_telemetry=False
+                anonymized_telemetry=False  # Keep all capabilities
             ))
 
             # Create collections for different memory types

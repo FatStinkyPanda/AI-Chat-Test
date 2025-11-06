@@ -92,46 +92,73 @@ class IntelligentResponder:
                                  inferences: List[str]) -> str:
         """
         Respond by making intelligent connections to past conversations
+        NOW WITH: Much more variety and naturalness
         """
         parts = []
 
         # Find the strongest association
         top_assoc = associations[0] if associations else None
 
-        if top_assoc:
+        # Vary the opening based on what we learned
+        if inferences:
+            # Use inferences as the main content
+            primary_inference = inferences[0]
+
+            # Make it conversational
+            if "interest" in primary_inference.lower():
+                parts.append(f"I'm noticing what matters to you. {primary_inference}")
+            elif "theme" in primary_inference.lower():
+                # Extract the theme and make it natural
+                parts.append(primary_inference.replace("This conversation is exploring the theme of",
+                                                       "We're diving into"))
+            elif "expressed" in primary_inference.lower():
+                parts.append("I'm picking up on your interests and starting to understand what draws your attention.")
+            else:
+                # Use the inference directly
+                parts.append(primary_inference)
+
+            # Add a second inference if it's different
+            if len(inferences) > 1:
+                second_inf = inferences[1]
+                if "pattern" in second_inf.lower() or "when" in second_inf.lower():
+                    parts.append(second_inf)
+
+        # Optionally add connection to memory (but not always - variety!)
+        if top_assoc and random.random() > 0.5:  # Only 50% of the time
             memory_content = top_assoc['memory'].get('content', '')
             assoc_type = top_assoc.get('type', 'direct_topic')
 
-            # Different connection phrasings based on type
+            connection_phrases = [
+                f"This builds on what you said about {memory_content[:30]}...",
+                f"Earlier you brought up {memory_content[:30]}... - I'm seeing how that connects.",
+                f"That relates to your point about {memory_content[:30]}...",
+            ]
+
             if assoc_type == 'learned_association':
                 topics = top_assoc.get('related_topics', [])
                 if len(topics) >= 2:
-                    parts.append(f"This connects to something interesting - when you mentioned {topics[0]} before, "
-                               f"you also brought up {topics[1]}.")
+                    connection_phrases.append(
+                        f"Interesting - you often link {topics[0]} with {topics[1]} in your thinking."
+                    )
 
-            elif assoc_type == 'thematic':
-                parts.append(f"This reminds me of our earlier conversation.")
+            # Only add if we haven't already said too much
+            if len(parts) < 2:
+                parts.append(random.choice(connection_phrases))
 
-            else:  # direct_topic
-                shared = top_assoc.get('shared_topics', [])
-                if shared:
-                    parts.append(f"This relates to when you mentioned {memory_content[:40]}...")
-
-        # Add inference-based understanding
-        if inferences:
-            # Find pattern or theme inferences
-            for inference in inferences:
-                if 'theme' in inference.lower() or 'pattern' in inference.lower():
-                    parts.append(inference)
-                    break
-
-        # Thoughtful follow-up
+        # Varied follow-ups
         follow_ups = [
-            "I'm connecting these ideas. What's your thinking on this?",
-            "I'm seeing patterns in what you're sharing. Want to explore this further?",
-            "These connections are interesting. What else comes to mind?",
+            "What direction would you like to take this?",
+            "Where does this lead in your mind?",
+            "What else is connected to this for you?",
+            "How are you thinking about this?",
+            "What's your perspective on where this connects?",
+            "I'm curious what else this brings up for you.",
+            "What other thoughts does this spark?",
         ]
-        parts.append(random.choice(follow_ups))
+
+        # Only add follow-up if we haven't said enough
+        if len(parts) < 2:
+            parts.append(random.choice(follow_ups))
 
         return " ".join(parts)
 
@@ -176,88 +203,99 @@ class IntelligentResponder:
                          associations: List[Dict], strategy: Dict) -> str:
         """
         Natural engagement based on understanding
-        Varied, thoughtful, contextual responses
+        NOW WITH: More variety, better inference usage, varied structure
         """
         parts = []
 
-        # Use different opening based on inferences
-        if inferences:
-            # If we understand something specific
-            if any('interest' in inf or 'feeling' in inf for inf in inferences):
-                openings = [
-                    "I'm following what you're sharing.",
-                    "I'm taking in what you're saying.",
-                    "I'm thinking about what you've told me.",
-                ]
-            elif any('theme' in inf or 'topic' in inf for inf in inferences):
-                openings = [
-                    "I'm noticing themes in our conversation.",
-                    "There's interesting depth to what you're saying.",
-                    "I'm seeing connections in what you're sharing.",
-                ]
-            else:
-                openings = [
-                    "That's interesting.",
-                    "I'm considering what you said.",
-                    "Let me think about that.",
-                ]
+        # Use inferences as primary content
+        if inferences and len(inferences) > 0:
+            # Get the most relevant inference
+            primary_inf = inferences[0]
 
-            parts.append(random.choice(openings))
-
-            # Share an inference if relevant
-            relevant_inf = None
+            # Skip meta-inferences about predictions
             for inf in inferences:
-                # Skip meta-inferences about predictions
-                if 'might want to discuss' not in inf and 'might discuss' not in inf:
-                    relevant_inf = inf
+                if 'might want to discuss' not in inf and 'might discuss' not in inf and 'predicted' not in inf:
+                    primary_inf = inf
                     break
 
-            if relevant_inf:
-                # Make it conversational
-                if relevant_inf.startswith("The user"):
-                    # Rephrase to be more natural
-                    parts.append("I'm learning about what matters to you.")
-                elif relevant_inf.startswith("This conversation"):
-                    parts.append(relevant_inf.replace("This conversation is", "We're"))
+            # Build response around the inference
+            if 'interest' in primary_inf.lower() or 'expressed' in primary_inf.lower():
+                openings = [
+                    "I'm starting to understand what catches your attention.",
+                    "I'm picking up on what draws your interest.",
+                    "I'm seeing what resonates with you.",
+                ]
+                parts.append(random.choice(openings))
+
+            elif 'theme' in primary_inf.lower():
+                # Make theme natural
+                theme_response = primary_inf.replace("This conversation is exploring the theme of", "We're exploring")
+                theme_response = theme_response.replace("This conversation", "We're talking about")
+                parts.append(theme_response + ".")
+
+            elif 'feeling' in primary_inf.lower() or 'emotion' in primary_inf.lower():
+                parts.append(f"{primary_inf}. I'm tuned into that.")
+
+            else:
+                # Use inference directly but make it conversational
+                if primary_inf.startswith("The user"):
+                    parts.append("I'm learning what matters to you as we talk.")
+                elif primary_inf.startswith("When the user mentions"):
+                    # Extract the pattern
+                    parts.append(f"I notice patterns in how you think about things.")
                 else:
-                    parts.append(relevant_inf)
+                    parts.append(primary_inf)
+
+            # Maybe add a second inference for depth
+            if len(inferences) > 1 and len(parts) == 1 and random.random() > 0.6:
+                second_inf = inferences[1]
+                if 'might want' not in second_inf and len(second_inf) < 80:
+                    parts.append(second_inf)
 
         else:
-            # No inferences - still engage thoughtfully
-            openings = [
-                "I'm here and listening.",
-                "I appreciate you sharing that.",
-                "I'm taking that in.",
+            # No inferences - use varied engagement
+            varied_openings = [
+                "I'm with you on this.",
+                "I'm following along.",
+                "You've given me something to think about.",
+                "I'm processing what you're saying.",
+                "That's worth considering.",
+                "I hear you.",
+                "I'm listening closely.",
             ]
-            parts.append(random.choice(openings))
+            parts.append(random.choice(varied_openings))
 
-        # If we have associations, reference them
-        if associations and random.random() > 0.5:  # 50% chance to mention connection
-            parts.append("This connects to things you've mentioned before.")
-
-        # Thoughtful follow-up based on strategy
+        # Varied follow-ups based on tone
         tone = strategy.get('tone', 'friendly')
 
         if tone == 'enthusiastic':
             follow_ups = [
+                "What else?",
                 "Tell me more!",
-                "What else about this?",
-                "I'd love to hear more.",
+                "I want to hear more about this.",
+                "Keep going!",
+                "What else is there to this?",
             ]
         elif tone == 'empathetic':
             follow_ups = [
-                "I'm here to listen.",
-                "What would help to talk about?",
-                "How can we explore this together?",
+                "I'm here.",
+                "What else would help to explore?",
+                "How does this sit with you?",
+                "What would be useful to discuss?",
             ]
-        else:  # friendly
+        else:  # friendly/curious
             follow_ups = [
-                "What else is on your mind?",
-                "Where shall we go with this?",
-                "What would you like to explore?",
-                "What else comes up for you?",
+                "What else comes to mind?",
+                "Where would you like to go with this?",
+                "What direction interests you?",
+                "How are you thinking about this?",
+                "What's next in your thinking?",
+                "What else connects to this?",
+                "Where does your mind go from here?",
             ]
 
-        parts.append(random.choice(follow_ups))
+        # Only add if response isn't already complete
+        if len(" ".join(parts).split()) < 15:
+            parts.append(random.choice(follow_ups))
 
         return " ".join(parts)
