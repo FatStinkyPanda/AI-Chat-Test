@@ -6,6 +6,12 @@ import subprocess
 import sys
 import os
 
+# Fix Windows encoding issues
+if sys.platform == 'win32':
+    import codecs
+    sys.stdout = codecs.getwriter('utf-8')(sys.stdout.buffer, 'strict')
+    sys.stderr = codecs.getwriter('utf-8')(sys.stderr.buffer, 'strict')
+
 # Check Python version first
 REQUIRED_MAJOR = 3
 REQUIRED_MINOR = 10
