@@ -13,6 +13,7 @@ from brain_core import BrainCore, MemoryNode, CognitiveEdge, EdgeType, Emotional
 from semantic_processor import SemanticProcessor, ContextManager
 from emotional_processor import EmotionalProcessor
 from vector_memory import VectorMemory
+from dynamic_responder import DynamicResponder
 
 
 class CognitiveSystem:
@@ -31,6 +32,7 @@ class CognitiveSystem:
         self.emotional_processor = EmotionalProcessor()
         self.vector_memory = VectorMemory(persist_directory=memory_dir)
         self.context_manager = ContextManager(self.semantic_processor)
+        self.responder = DynamicResponder()
 
         # System state
         self.state_file = state_file
@@ -288,85 +290,16 @@ class CognitiveSystem:
                           reasoning_paths: List[List[MemoryNode]]) -> str:
         """
         Generate a response based on all cognitive processes
+        Uses dynamic responder for natural, intelligent conversation
         """
-        # Get emotional response marker
-        emotional_response = self.emotional_processor.generate_emotional_response(
-            input_emotions,
-            empathy_level=0.7
+        # Use the dynamic responder to construct a natural response
+        response = self.responder.construct_response(
+            user_input=user_input,
+            relevant_memories=relevant_memories,
+            input_emotions=input_emotions,
+            reasoning_paths=reasoning_paths,
+            turn_count=self.turn_count
         )
-
-        # Build context from relevant memories
-        context_parts = []
-        for memory in relevant_memories[:5]:
-            if memory.get('metadata', {}).get('role') == 'assistant':
-                context_parts.append(memory['content'])
-
-        # Check for direct questions
-        is_question = any(word in user_input.lower() for word in ['what', 'why', 'how', 'when', 'where', 'who', 'can', 'could', 'would', '?'])
-
-        # Generate response based on patterns
-        response_parts = []
-
-        if emotional_response:
-            response_parts.append(emotional_response)
-
-        # Use learned patterns and context
-        keywords = self.semantic_processor.extract_keywords(user_input, top_n=3)
-
-        # Build a contextual response
-        if is_question:
-            # Try to answer from memory
-            if relevant_memories:
-                # Use most relevant memory as basis
-                best_memory = relevant_memories[0]
-                if best_memory.get('metadata', {}).get('role') == 'assistant':
-                    response_parts.append(f"Based on what I know: {best_memory['content'][:150]}")
-                else:
-                    response_parts.append("Let me think about that.")
-            else:
-                response_parts.append("That's an interesting question.")
-
-            # Add reasoning if available
-            if reasoning_paths:
-                response_parts.append("I can connect this with other things we've discussed.")
-
-        else:
-            # Conversational response
-            sentiment, _ = self.emotional_processor.detect_sentiment(user_input)
-
-            if sentiment == "positive":
-                responses = [
-                    "I'm glad to hear that!",
-                    "That sounds great!",
-                    "I appreciate you sharing that with me."
-                ]
-            elif sentiment == "negative":
-                responses = [
-                    "I understand. That must be challenging.",
-                    "I'm here to help with that.",
-                    "Thank you for telling me about this."
-                ]
-            else:
-                responses = [
-                    "I understand what you're saying.",
-                    "That's interesting.",
-                    "Tell me more about that."
-                ]
-
-            import random
-            response_parts.append(random.choice(responses))
-
-        # Add context-aware follow-up
-        if self.turn_count > 3:
-            if relevant_memories:
-                response_parts.append("I remember our earlier conversation about this.")
-
-        # Combine response parts
-        response = " ".join(response_parts)
-
-        # Ensure response isn't too long
-        if len(response) > 500:
-            response = response[:497] + "..."
 
         return response
 
