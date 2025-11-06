@@ -2,11 +2,25 @@
 
 A novel multi-graph cognitive architecture for natural language understanding and generation with persistent memory.
 
+## Quick Start
+
+**Don't have Python 3.10? No problem!**
+
+Just run this and follow the prompts:
+```bash
+python setup.py
+```
+
+The setup will automatically detect your Python version and offer to install Python 3.10.11 if needed. It will ask for your permission before making any changes.
+
+---
+
 ## Requirements
 
 **Python Version: 3.10.x** (Required for full compatibility with ChromaDB and numpy)
 
 - **Recommended**: Python 3.10.11
+- **Auto-installer available**: Run `python install_python.py` for guided installation
 - **Not compatible**: Python 3.11+ or Python 3.9 and below may have dependency issues
 
 ## Overview
@@ -80,37 +94,80 @@ This project implements a brain-inspired AI system that:
 
 ## Installation
 
-### Prerequisites
-- **Python 3.10.x** (download from [python.org](https://www.python.org/downloads/release/python-31011/))
-- pip (included with Python)
+### Automatic Installation (Recommended)
 
-**Important**: Make sure you're using Python 3.10.x. Check your version:
-```bash
-python --version
-```
+The project includes an automatic Python version manager that will install Python 3.10.x for you if needed.
 
-If you have multiple Python versions, you may need to use `python3.10` or specify the full path.
-
-### Quick Setup
-
-1. Clone or download this repository
-
-2. Verify Python version (the setup will check automatically):
-```bash
-python check_python.py
-```
-
-3. Run the setup script:
+**Simply run:**
 ```bash
 python setup.py
 ```
 
-This will automatically install all dependencies.
+The setup will:
+1. Check your Python version
+2. If incompatible, offer to install Python 3.10.11 automatically
+3. Ask for your permission before installing
+4. Guide you through the installation process
+5. Install all required dependencies
 
 ### Manual Installation
 
+If you prefer to install Python manually:
+
+#### Prerequisites
+- **Python 3.10.x** (download from [python.org](https://www.python.org/downloads/release/python-31011/))
+- pip (included with Python)
+
+**Check your Python version:**
 ```bash
+python --version
+```
+
+#### Setup Steps
+
+1. **Clone the repository:**
+```bash
+git clone https://github.com/FatStinkyPanda/AI-Chat-Test.git
+cd AI-Chat-Test
+```
+
+2. **Automatic Python installation (if needed):**
+```bash
+python install_python.py
+```
+This will detect your Python version and offer to install 3.10.11 if incompatible.
+
+3. **Install dependencies:**
+```bash
+python setup.py
+```
+
+4. **Run the AI:**
+```bash
+python chat.py
+```
+
+### Troubleshooting Installation
+
+**If you have Python version issues:**
+```bash
+# Check current version
+python --version
+
+# Run automatic installer
+python install_python.py
+
+# Or manually verify
+python check_python.py
+```
+
+**If dependencies fail to install:**
+```bash
+# Try manual installation
 pip install -r requirements.txt
+
+# For ChromaDB issues specifically
+python install_chromadb.py
 ```
 
 ## Usage

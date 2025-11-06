@@ -36,6 +36,48 @@ def check_python_version():
     return True
 
 
+def offer_python_installation():
+    """Offer to install correct Python version"""
+    print()
+    print("Would you like to automatically install Python 3.10.11?")
+    print()
+    print("Options:")
+    print("  1. Yes, install Python 3.10.11 automatically")
+    print("  2. No, I'll install it manually")
+    print()
+
+    choice = input("Choose (1 or 2): ").strip()
+
+    if choice == '1':
+        print()
+        print("Launching Python installer...")
+        print()
+
+        try:
+            # Run the install_python.py script
+            subprocess.run([sys.executable, 'install_python.py'], check=True)
+            print()
+            print("=" * 60)
+            print("Python installation process completed!")
+            print("=" * 60)
+            print()
+            print("IMPORTANT: You must restart your terminal/command prompt")
+            print("Then run this setup script again:")
+            print("  python setup.py")
+            print()
+            sys.exit(0)
+
+        except subprocess.CalledProcessError as e:
+            print(f"\n✗ Installation script failed: {e}")
+            return False
+        except FileNotFoundError:
+            print("\n✗ install_python.py not found!")
+            print("Please download it from the repository.")
+            return False
+
+    return False
+
+
 def install_requirements():
     """Install required packages"""
     requirements_file = "requirements.txt"
@@ -126,10 +168,18 @@ def main():
     # Check Python version first
     if not check_python_version():
         print("\n❌ Installation aborted due to Python version incompatibility")
-        print("\nPlease install Python 3.10.x:")
-        print("  Windows: https://www.python.org/downloads/release/python-31011/")
-        print("  Or use pyenv: pyenv install 3.10.11")
-        print("\nThen run setup again.")
+        print()
+
+        # Offer automatic installation
+        if not offer_python_installation():
+            print("\nPlease install Python 3.10.x manually:")
+            print("  Windows: https://www.python.org/downloads/release/python-31011/")
+            print("  macOS/Linux: Run 'python install_python.py' for guided installation")
+            print("  Or use pyenv: pyenv install 3.10.11")
+            print("\nThen run setup again:")
+            print("  python setup.py")
+            print()
+
         sys.exit(1)
 
     print("This script will install all required dependencies.")
