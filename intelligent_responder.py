@@ -129,9 +129,9 @@ class IntelligentResponder:
             assoc_type = top_assoc.get('type', 'direct_topic')
 
             connection_phrases = [
-                f"This builds on what you said about {memory_content[:30]}...",
-                f"Earlier you brought up {memory_content[:30]}... - I'm seeing how that connects.",
-                f"That relates to your point about {memory_content[:30]}...",
+                f"This builds on what you said: '{memory_content}'",
+                f"Earlier you brought up '{memory_content}' - I'm seeing how that connects.",
+                f"That relates to your point about '{memory_content}'",
             ]
 
             if assoc_type == 'learned_association':

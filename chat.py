@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-Brain-Inspired AI Chat Interface
-Main entry point for conversational interaction
+CEREBRUM - Continuous Evolving Reasoning and Brain-like Understanding Machine
+Main entry point for conversational interaction with the artificial mind
 """
 
 import sys
@@ -31,8 +31,9 @@ class ChatBot:
     def initialize(self):
         """Initialize all components"""
         print("=" * 60)
-        print("Brain-Inspired Conversational AI")
-        print("A novel multi-graph cognitive architecture")
+        print("CEREBRUM - Continuous Evolving Reasoning and")
+        print("Brain-like Understanding Machine")
+        print("A novel approach to artificial general intelligence")
         print("=" * 60)
         print()
 
@@ -117,12 +118,15 @@ class ChatBot:
         """Generate welcome message"""
         stats = self.cognitive_system.get_statistics()
 
-        welcome = "Hello! I'm a brain-inspired AI system that learns and remembers.\n"
+        welcome = "Hello! I'm CEREBRUM - a continuously thinking, learning, and reasoning artificial mind.\n"
 
         if stats['brain_stats']['total_nodes'] > 0:
-            welcome += f"I remember our previous conversations ({stats['brain_stats']['total_nodes']} memories).\n"
+            welcome += f"I have {stats['brain_stats']['total_nodes']} memories from our previous conversations.\n"
+            welcome += "I've been thinking about what we've discussed, building connections and insights.\n"
+        else:
+            welcome += "I'm ready to learn, reason, and explore ideas with you.\n"
 
-        welcome += "How can I help you today?"
+        welcome += "\nWhat would you like to discuss today?"
 
         return welcome
 

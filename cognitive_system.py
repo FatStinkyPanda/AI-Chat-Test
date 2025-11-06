@@ -8,6 +8,7 @@ import numpy as np
 from datetime import datetime
 import uuid
 import os
+from collections import deque
 
 from brain_core import BrainCore, MemoryNode, CognitiveEdge, EdgeType, EmotionalValence
 from semantic_processor import SemanticProcessor, ContextManager
@@ -18,6 +19,15 @@ from reasoning_engine import ReasoningEngine
 from deliberation_engine import DeliberationEngine
 from enhanced_reasoner import EnhancedReasoner
 from intelligent_responder import IntelligentResponder
+
+# NEW ADVANCED SYSTEMS
+from causal_discovery import CausalDiscoveryEngine
+from multi_step_inference import MultiStepInferenceEngine
+from conversation_predictor import ConversationPredictor, ConversationState
+from attention_mechanism import AttentionMechanism
+from knowledge_graph import KnowledgeGraph
+from meta_learning import MetaLearningSystem
+from transfer_learning import TransferLearningSystem
 
 
 class CognitiveSystem:
@@ -49,6 +59,21 @@ class CognitiveSystem:
             self.enhanced_reasoner
         )
 
+        # ADVANCED COGNITIVE SYSTEMS (NEWEST!)
+        print("Initializing advanced cognitive systems...")
+        self.causal_engine = CausalDiscoveryEngine()
+        self.inference_engine = MultiStepInferenceEngine()
+        self.conversation_predictor = ConversationPredictor()
+        self.attention_mechanism = AttentionMechanism(embedding_dim=384)
+        self.knowledge_graph = KnowledgeGraph()
+        self.meta_learning = MetaLearningSystem()
+        self.transfer_learning = TransferLearningSystem()
+        print("Advanced systems initialized.")
+
+        # Conversation state tracking
+        self.current_conversation_state: Optional[ConversationState] = None
+        self.session_start_time = datetime.now().timestamp()
+
         # System state
         self.state_file = state_file
         self.conversation_id = str(uuid.uuid4())
@@ -70,6 +95,9 @@ class CognitiveSystem:
                 print(f"Loaded previous brain state: {len(self.brain.nodes)} nodes")
             except Exception as e:
                 print(f"Could not load previous state: {e}")
+
+        # Load advanced system states
+        self._load_advanced_states()
 
         print("Cognitive System initialized.")
         print(f"Memory statistics: {self.vector_memory.get_memory_stats()}")
@@ -118,26 +146,81 @@ class CognitiveSystem:
         # 4. CONTEXT UPDATE
         self.context_manager.add_turn('user', user_input, {'timestamp': timestamp})
 
-        # 5. RETRIEVAL: Find relevant memories
-        relevant_memories = self._retrieve_relevant_context(input_embedding, user_input)
+        # 5. RETRIEVAL: Find relevant memories WITH ATTENTION
+        # Use attention mechanism to intelligently select relevant information
+        relevant_memories = self._retrieve_relevant_context_with_attention(
+            input_embedding, user_input
+        )
 
-        # 6. ASSOCIATION: Create cognitive edges
-        self._create_associations(node_id, relevant_memories, input_emotions)
+        # 6. KNOWLEDGE EXTRACTION: Extract entities, relationships, and facts
+        knowledge_extracted = self.knowledge_graph.extract_knowledge(
+            user_input, node_id
+        )
 
-        # 7. ACTIVATION: Spread activation in network
+        # 7. CAUSAL DISCOVERY: Discover causal relationships
+        causal_relations = self.causal_engine.discover_causal_relations(
+            user_input, node_id, timestamp.timestamp()
+        )
+
+        # 8. ASSOCIATION: Create cognitive edges (enhanced with causal edges)
+        self._create_associations_enhanced(
+            node_id, relevant_memories, input_emotions, causal_relations
+        )
+
+        # 9. ACTIVATION: Spread activation in network
         relevant_node_ids = [m['id'] for m in relevant_memories[:5]]
         self.brain.activate_network([node_id] + relevant_node_ids, activation_spread=2)
 
-        # 8. REASONING: Multi-hop reasoning for deeper understanding
+        # 10. REASONING: Multi-hop reasoning for deeper understanding
         reasoning_paths = self._perform_reasoning(node_id)
 
-        # 8.5 INFERENCE: Generate initial inferences from memories and context
+        # 11. INFERENCE: Generate initial inferences from memories and context
         inferences = self._perform_inference(relevant_memories, user_input)
 
-        # 8.6 GAP DETECTION: Identify initial information gaps
+        # 12. MULTI-STEP INFERENCE: Build inference chains for deeper conclusions
+        inference_chains = self._perform_multi_step_inference(relevant_memories, user_input)
+
+        # 13. GAP DETECTION: Identify initial information gaps
         information_gaps = self._identify_gaps(relevant_memories, user_input)
 
-        # 8.7 DELIBERATION: Think iteratively and decide when ready to respond
+        # 14. CONVERSATION PREDICTION: Predict trajectory and get anticipatory insights
+        topics = self.semantic_processor.extract_keywords(user_input, top_n=5)
+        dominant_emotion_tuple = self.emotional_processor.get_dominant_emotion(input_emotions)
+        dominant_emotion = dominant_emotion_tuple[0].value if dominant_emotion_tuple else "neutral"
+        intent = self._detect_intent(user_input)
+
+        # Update conversation state
+        self.current_conversation_state = self.conversation_predictor.update_state(
+            previous_state=self.current_conversation_state,
+            new_topics=topics,
+            new_intent=intent,
+            new_emotion=dominant_emotion,
+            user_text=user_input
+        )
+
+        # Get predictive insights
+        trajectory_prediction = self.conversation_predictor.predict_trajectory(
+            self.current_conversation_state,
+            horizon=5
+        )
+
+        anticipatory_insights = self.conversation_predictor.get_anticipatory_insights(
+            self.current_conversation_state
+        )
+
+        # 15. META-LEARNING: Select optimal learning strategy
+        learning_context = f"{intent}_{dominant_emotion}" if intent and dominant_emotion else "general"
+        learning_strategy = self.meta_learning.select_learning_strategy(
+            information=user_input,
+            context=learning_context,
+            learning_goal=None
+        )
+
+        print(f"\n[Meta-Learning] Selected strategy: {learning_strategy.name}")
+        print(f"[Conversation Prediction] Ending probability: {trajectory_prediction.conversation_ending_probability:.2f}")
+        print(f"[Strategy] Recommended: {anticipatory_insights.get('recommended_strategy', 'maintain_flow')}")
+
+        # 16. DELIBERATION: Think iteratively and decide when ready to respond
         # This is where the AI truly thinks for itself
         print(f"\n{'='*60}")
         print("AI is thinking about what to say...")
@@ -157,42 +240,79 @@ class CognitiveSystem:
         print(f"Confidence: {deliberation_result.final_confidence:.2f}")
         print(f"{'='*60}\n")
 
-        # 8.8 THOUGHT RECORDING: Save deliberation thoughts as memory
+        # 17. THOUGHT RECORDING: Save deliberation thoughts as memory
         thought_nodes = self._record_deliberation_thoughts(
             deliberation_result=deliberation_result,
             context_node_id=node_id
         )
 
-        # 9. LEARNING: Update patterns and associations
+        # 18. LEARNING: Update patterns and associations
         self._learn_patterns(user_input, relevant_memories)
 
-        # 10. GENERATION: Generate intelligent response based on deliberation
+        # 19. CONVERSATION PATTERN LEARNING
+        if self.turn_count > 1 and self.current_conversation_state:
+            # Get previous topic from current state
+            prev_topics = self.current_conversation_state.current_topics if hasattr(self.current_conversation_state, 'current_topics') else []
+            prev_intent = self.current_conversation_state.recent_intents[-2] if len(self.current_conversation_state.recent_intents) > 1 else ""
+            prev_emotion = self.current_conversation_state.emotional_trajectory[-2] if len(self.current_conversation_state.emotional_trajectory) > 1 else ""
+
+            if prev_topics or prev_intent:
+                self.conversation_predictor.learn_transitions(
+                    previous_topic=prev_topics[-1] if prev_topics else "",
+                    new_topic=topics[0] if topics else "",
+                    previous_intent=prev_intent,
+                    new_intent=intent,
+                    previous_emotion=prev_emotion,
+                    new_emotion=dominant_emotion
+                )
+
+        # 20. GENERATION: Generate intelligent response based on deliberation
         response = self._generate_intelligent_response(
             user_input,
             input_embedding,
             input_emotions,
             relevant_memories,
             reasoning_paths,
-            deliberation_result  # Pass deliberation results
+            deliberation_result,  # Pass deliberation results
+            anticipatory_insights  # Pass anticipatory insights
         )
 
-        # 11. STORE RESPONSE
+        # 21. STORE RESPONSE
         self._store_response(response, input_embedding, input_emotions)
 
-        # 12. LEARNING: Learn from this conversation turn (ENHANCED!)
+        # 22. META-LEARNING: Record learning experience
+        retention_score = deliberation_result.final_confidence
+        application_score = 0.8  # Simplified - could be calculated based on response quality
+        speed_score = 1.0 - (deliberation_result.total_iterations / 10.0)  # Fewer iterations = faster
+
+        self.meta_learning.record_learning_experience(
+            context=learning_context,
+            strategy=learning_strategy,
+            information=user_input,
+            success=deliberation_result.final_confidence > 0.7,
+            retention_score=retention_score,
+            application_score=application_score,
+            speed_score=speed_score
+        )
+
+        # 23. LEARNING: Learn from this conversation turn (ENHANCED!)
         self.enhanced_reasoner.learn_from_conversation(
             user_input=user_input,
             ai_response=response,
             memories=relevant_memories
         )
 
-        # 13. MEMORY CONSOLIDATION
+        # 24. MEMORY CONSOLIDATION
         self.brain.decay_activations(rate=0.05)
         self.brain.update_working_memory(node_id)
 
-        # 14. PERIODIC SAVE
+        # 25. PERIODIC SAVE (enhanced with new systems)
         if self.turn_count % 10 == 0:
             self._save_state()
+
+        # 26. SESSION AGGREGATION (every 20 turns)
+        if self.turn_count % 20 == 0:
+            self._aggregate_session_patterns()
 
         return response
 
@@ -489,61 +609,6 @@ class CognitiveSystem:
 
         return thought_node_ids
 
-    def _generate_intelligent_response(self, user_input: str,
-                                      input_embedding: np.ndarray,
-                                      input_emotions: Dict[EmotionalValence, float],
-                                      relevant_memories: List[Dict],
-                                      reasoning_paths: List[List[MemoryNode]],
-                                      deliberation_result=None) -> str:
-        """
-        Generate intelligent response using enhanced reasoning
-        The AI decides what to say based on deep understanding
-        """
-
-        if deliberation_result and deliberation_result.response_strategy:
-            # Use intelligent responder with enhanced understanding
-            understanding = {
-                'user_said': user_input,
-                'keywords': self.semantic_processor.extract_keywords(user_input, top_n=5),
-                'emotions': input_emotions,
-                'memories': relevant_memories,
-            }
-
-            response = self.intelligent_responder.generate_response(
-                user_input=user_input,
-                understanding=understanding,
-                inferences=deliberation_result.enhanced_inferences or [],
-                associations=deliberation_result.associations or [],
-                strategy=deliberation_result.response_strategy,
-                memories=relevant_memories
-            )
-        else:
-            # Fallback to dynamic responder
-            response = self.responder.construct_response(
-                user_input=user_input,
-                relevant_memories=relevant_memories,
-                input_emotions=input_emotions,
-                reasoning_paths=reasoning_paths,
-                turn_count=self.turn_count,
-                deliberation_result=deliberation_result
-            )
-
-        return response
-
-    def _generate_response(self, user_input: str,
-                          input_embedding: np.ndarray,
-                          input_emotions: Dict[EmotionalValence, float],
-                          relevant_memories: List[Dict],
-                          reasoning_paths: List[List[MemoryNode]],
-                          deliberation_result=None) -> str:
-        """
-        DEPRECATED: Use _generate_intelligent_response instead
-        Kept for backwards compatibility
-        """
-        return self._generate_intelligent_response(
-            user_input, input_embedding, input_emotions,
-            relevant_memories, reasoning_paths, deliberation_result
-        )
 
     def _store_response(self, response: str, input_embedding: np.ndarray,
                        input_emotions: Dict[EmotionalValence, float]):
@@ -619,3 +684,326 @@ class CognitiveSystem:
         print("Shutting down cognitive system...")
         self._save_state()
         print("State saved. Goodbye!")
+
+    # ========== NEW ADVANCED METHODS ==========
+
+    def _retrieve_relevant_context_with_attention(
+        self,
+        query_embedding: np.ndarray,
+        query_text: str
+    ) -> List[Dict]:
+        """Retrieve relevant context using attention mechanism"""
+        # First get candidates using standard retrieval
+        candidates = self._retrieve_relevant_context(query_embedding, query_text)
+
+        if not candidates:
+            return []
+
+        # Prepare for attention mechanism
+        items = []
+        embeddings = []
+
+        for candidate in candidates:
+            # Ensure timestamp is a float
+            timestamp_raw = candidate.get('metadata', {}).get('timestamp', datetime.now().timestamp())
+            if isinstance(timestamp_raw, str):
+                try:
+                    # Try parsing ISO format or float string
+                    timestamp = datetime.fromisoformat(timestamp_raw).timestamp()
+                except:
+                    timestamp = float(timestamp_raw) if timestamp_raw.replace('.', '').isdigit() else datetime.now().timestamp()
+            elif isinstance(timestamp_raw, datetime):
+                timestamp = timestamp_raw.timestamp()
+            else:
+                timestamp = float(timestamp_raw) if timestamp_raw else datetime.now().timestamp()
+
+            items.append({
+                'id': candidate['id'],
+                'content': candidate['content'],
+                'timestamp': timestamp,
+                'importance': candidate.get('relevance', 0.5),
+                'activation_level': candidate.get('relevance', 0.5)
+            })
+
+            # Get embedding (reuse or encode)
+            node = self.brain.get_node(candidate['id'])
+            if node and node.embedding is not None:
+                embeddings.append(node.embedding)
+            else:
+                embeddings.append(self.semantic_processor.encode(candidate['content']))
+
+        # Apply attention mechanism
+        attention_scores = self.attention_mechanism.compute_attention(
+            query_embedding=query_embedding,
+            items=items,
+            item_embeddings=embeddings,
+            top_k=10,
+            attention_mode="balanced"
+        )
+
+        # Convert back to standard format with attention weights
+        results = []
+        for att_score in attention_scores:
+            # Find original candidate
+            orig = next(c for c in candidates if c['id'] == att_score.item_id)
+            orig['relevance'] = att_score.score
+            orig['attention_weight'] = att_score.final_weight
+            results.append(orig)
+
+        return results
+
+    def _create_associations_enhanced(
+        self,
+        node_id: str,
+        relevant_memories: List[Dict],
+        emotions: Dict[EmotionalValence, float],
+        causal_relations: List
+    ):
+        """Create enhanced associations including causal edges"""
+        # Standard associations
+        self._create_associations(node_id, relevant_memories, emotions)
+
+        # Add causal edges
+        for causal_rel in causal_relations:
+            # Find if we have nodes for cause and effect
+            cause_content = causal_rel.cause.lower()
+            effect_content = causal_rel.effect.lower()
+
+            # Search for matching nodes
+            for memory in relevant_memories[:10]:
+                if cause_content in memory['content'].lower():
+                    # Create causal edge
+                    causal_edge = CognitiveEdge(
+                        source_id=memory['id'],
+                        target_id=node_id,
+                        edge_type=EdgeType.CAUSAL,
+                        strength=causal_rel.confidence
+                    )
+                    self.brain.add_edge(causal_edge)
+
+    def _perform_multi_step_inference(
+        self,
+        relevant_memories: List[Dict],
+        current_input: str
+    ) -> List:
+        """Perform multi-step inference to build inference chains"""
+
+        # Convert memories to facts for inference engine
+        for memory in relevant_memories[:10]:
+            self.inference_engine.add_fact(
+                fact_id=memory['id'],
+                content=memory['content'],
+                confidence=memory.get('relevance', 0.7)
+            )
+
+        # Try forward chaining
+        premises = [
+            {
+                'id': m['id'],
+                'content': m['content'],
+                'confidence': m.get('relevance', 0.7)
+            }
+            for m in relevant_memories[:5]
+        ]
+
+        forward_chains = self.inference_engine.forward_chain(
+            premises=premises,
+            max_depth=3,
+            min_confidence=0.5
+        )
+
+        return forward_chains
+
+    def _detect_intent(self, user_input: str) -> str:
+        """Detect user intent from input"""
+        text_lower = user_input.lower()
+
+        # Question intents
+        if '?' in user_input:
+            return 'question'
+
+        # Emotional expressions
+        emotion_words = ['feel', 'felt', 'feeling', 'emotion', 'happy', 'sad', 'angry', 'excited']
+        if any(word in text_lower for word in emotion_words):
+            return 'emotional_expression'
+
+        # Information sharing
+        sharing_words = ['i', 'my', 'me', 'today', 'yesterday', 'recently']
+        if any(word in text_lower for word in sharing_words):
+            return 'information_sharing'
+
+        # Interest expression
+        interest_words = ['interesting', 'curious', 'wonder', 'fascinated', 'tell me']
+        if any(word in text_lower for word in interest_words):
+            return 'interest_expression'
+
+        # Gratitude
+        if any(word in text_lower for word in ['thank', 'thanks', 'appreciate']):
+            return 'gratitude'
+
+        # Greeting
+        if any(word in text_lower for word in ['hello', 'hi', 'hey', 'greetings']):
+            return 'greeting'
+
+        # Farewell
+        if any(word in text_lower for word in ['bye', 'goodbye', 'see you', 'later']):
+            return 'farewell'
+
+        return 'general'
+
+    def _aggregate_session_patterns(self):
+        """Aggregate patterns from current session for transfer learning"""
+        if self.turn_count < 5:
+            return  # Too early
+
+        # Gather session data - extract topics from conversation state
+        topics = []
+        if self.current_conversation_state:
+            topics = self.current_conversation_state.current_topics[:20]
+
+        # Also gather from topic transitions if available
+        if hasattr(self.conversation_predictor, 'topic_transitions'):
+            topics.extend(list(self.conversation_predictor.topic_transitions.keys())[:20])
+
+        # Remove duplicates while preserving order
+        seen = set()
+        topics = [t for t in topics if not (t in seen or seen.add(t))][:20]
+
+        patterns = []  # Could gather from enhanced reasoner
+
+        # Extract entities and relationships from knowledge graph
+        entities = [entity.name for entity in self.knowledge_graph.entities.values()]
+        relationships = []
+        for rel in list(self.knowledge_graph.relationships.values())[:20]:
+            if rel.subject_id in self.knowledge_graph.entities and rel.object_id in self.knowledge_graph.entities:
+                relationships.append(
+                    f"{self.knowledge_graph.entities[rel.subject_id].name} {rel.predicate} {self.knowledge_graph.entities[rel.object_id].name}"
+                )
+
+        # Get insights from deliberation history
+        insights = []
+        if hasattr(self.deliberation_engine, 'deliberation_history'):
+            for delib in self.deliberation_engine.deliberation_history[-5:]:
+                insights.extend(delib.key_insights[:3])
+
+        # Calculate session duration
+        duration = datetime.now().timestamp() - self.session_start_time
+
+        # Aggregate into transfer learning system
+        session_summary = self.transfer_learning.aggregate_session_patterns(
+            topics=topics,
+            patterns=patterns,
+            insights=insights,
+            entities=entities[:20],
+            relationships=relationships[:20],
+            duration=duration,
+            turn_count=self.turn_count
+        )
+
+        print(f"\n[Transfer Learning] Session aggregated: {session_summary.session_id}")
+        print(f"[Transfer Learning] Learning quality: {session_summary.learning_quality:.2f}")
+
+    def _load_advanced_states(self):
+        """Load states for all advanced systems"""
+        try:
+            # Causal engine
+            causal_state_file = "./causal_state.json"
+            if os.path.exists(causal_state_file):
+                self.causal_engine.load_state(causal_state_file)
+                print(f"Loaded causal engine: {len(self.causal_engine.causal_relations)} relations")
+
+            # Knowledge graph
+            kg_state_file = "./knowledge_graph_state.json"
+            if os.path.exists(kg_state_file):
+                self.knowledge_graph.load_graph(kg_state_file)
+                print(f"Loaded knowledge graph: {len(self.knowledge_graph.entities)} entities")
+
+            # Conversation predictor
+            conv_state_file = "./conversation_predictor_state.json"
+            if os.path.exists(conv_state_file):
+                self.conversation_predictor.load_state(conv_state_file)
+                print(f"Loaded conversation predictor")
+
+            # Attention mechanism
+            attention_state_file = "./attention_state.json"
+            if os.path.exists(attention_state_file):
+                self.attention_mechanism.load_state(attention_state_file)
+                print(f"Loaded attention mechanism")
+
+            # Meta-learning
+            meta_state_file = "./meta_learning_state.json"
+            if os.path.exists(meta_state_file):
+                self.meta_learning.load_state(meta_state_file)
+                print(f"Loaded meta-learning system")
+
+            # Transfer learning
+            transfer_state_file = "./transfer_learning_state.json"
+            if os.path.exists(transfer_state_file):
+                self.transfer_learning.load_state(transfer_state_file)
+                print(f"Loaded transfer learning system")
+
+        except Exception as e:
+            print(f"Error loading advanced states: {e}")
+
+    def _save_state(self):
+        """Enhanced save state - saves all systems"""
+        try:
+            # Original brain state
+            self.brain.save_state(self.state_file)
+
+            # Save all advanced systems
+            self.causal_engine.save_state("./causal_state.json")
+            self.knowledge_graph.save_graph("./knowledge_graph_state.json")
+            self.conversation_predictor.save_state("./conversation_predictor_state.json")
+            self.attention_mechanism.save_state("./attention_state.json")
+            self.meta_learning.save_state("./meta_learning_state.json")
+            self.transfer_learning.save_state("./transfer_learning_state.json")
+
+            print(f"All systems saved ({len(self.brain.nodes)} nodes)")
+        except Exception as e:
+            print(f"Error saving state: {e}")
+
+    def _generate_intelligent_response(
+        self,
+        user_input: str,
+        input_embedding: np.ndarray,
+        input_emotions: Dict[EmotionalValence, float],
+        relevant_memories: List[Dict],
+        reasoning_paths: List[List[MemoryNode]],
+        deliberation_result=None,
+        anticipatory_insights=None
+    ) -> str:
+        """
+        Enhanced intelligent response generation with anticipatory insights
+        """
+
+        if deliberation_result and deliberation_result.response_strategy:
+            # Use intelligent responder with enhanced understanding
+            understanding = {
+                'user_said': user_input,
+                'keywords': self.semantic_processor.extract_keywords(user_input, top_n=5),
+                'emotions': input_emotions,
+                'memories': relevant_memories,
+                'anticipatory_insights': anticipatory_insights or {}
+            }
+
+            response = self.intelligent_responder.generate_response(
+                user_input=user_input,
+                understanding=understanding,
+                inferences=deliberation_result.enhanced_inferences or [],
+                associations=deliberation_result.associations or [],
+                strategy=deliberation_result.response_strategy,
+                memories=relevant_memories
+            )
+        else:
+            # Fallback to dynamic responder
+            response = self.responder.construct_response(
+                user_input=user_input,
+                relevant_memories=relevant_memories,
+                input_emotions=input_emotions,
+                reasoning_paths=reasoning_paths,
+                turn_count=self.turn_count,
+                deliberation_result=deliberation_result
+            )
+
+        return response
