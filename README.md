@@ -2,6 +2,13 @@
 
 A novel multi-graph cognitive architecture for natural language understanding and generation with persistent memory.
 
+## Requirements
+
+**Python Version: 3.10.x** (Required for full compatibility with ChromaDB and numpy)
+
+- **Recommended**: Python 3.10.11
+- **Not compatible**: Python 3.11+ or Python 3.9 and below may have dependency issues
+
 ## Overview
 
 This project implements a brain-inspired AI system that:
@@ -73,15 +80,27 @@ This project implements a brain-inspired AI system that:
 
 ## Installation
 
-### Requirements
-- Python 3.8+
-- pip
+### Prerequisites
+- **Python 3.10.x** (download from [python.org](https://www.python.org/downloads/release/python-31011/))
+- pip (included with Python)
+
+**Important**: Make sure you're using Python 3.10.x. Check your version:
+```bash
+python --version
+```
+
+If you have multiple Python versions, you may need to use `python3.10` or specify the full path.
 
 ### Quick Setup
 
 1. Clone or download this repository
 
-2. Run the setup script:
+2. Verify Python version (the setup will check automatically):
+```bash
+python check_python.py
+```
+
+3. Run the setup script:
 ```bash
 python setup.py
 ```

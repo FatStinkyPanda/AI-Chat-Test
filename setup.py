@@ -6,14 +6,38 @@ import subprocess
 import sys
 import os
 
+# Check Python version first
+REQUIRED_MAJOR = 3
+REQUIRED_MINOR = 10
+MAX_MINOR = 11
+
+
+def check_python_version():
+    """Check if Python version is compatible"""
+    version = sys.version_info
+
+    print(f"Checking Python version: {version.major}.{version.minor}.{version.micro}")
+
+    if version.major != REQUIRED_MAJOR:
+        print(f"\n❌ ERROR: Python {REQUIRED_MAJOR}.x is required")
+        print(f"   You are using Python {version.major}.{version.minor}")
+        print("\n   This project requires Python 3.10.x for full compatibility")
+        print("   with ChromaDB, numpy, and other dependencies.\n")
+        return False
+
+    if version.minor < REQUIRED_MINOR or version.minor > MAX_MINOR:
+        print(f"\n⚠️  WARNING: Python {REQUIRED_MAJOR}.{REQUIRED_MINOR}.x is recommended")
+        print(f"   You are using Python {version.major}.{version.minor}.{version.micro}")
+        print(f"   Some features may not work correctly")
+        print(f"   ChromaDB and numpy may have compatibility issues\n")
+        return False
+
+    print(f"✓ Python version compatible ({version.major}.{version.minor}.{version.micro})\n")
+    return True
+
 
 def install_requirements():
     """Install required packages"""
-    print("=" * 60)
-    print("Brain-Inspired Conversational AI - Setup")
-    print("=" * 60)
-    print()
-
     requirements_file = "requirements.txt"
 
     if not os.path.exists(requirements_file):
@@ -94,6 +118,20 @@ def create_directories():
 def main():
     """Main setup function"""
     print()
+    print("=" * 60)
+    print("Brain-Inspired Conversational AI - Setup")
+    print("=" * 60)
+    print()
+
+    # Check Python version first
+    if not check_python_version():
+        print("\n❌ Installation aborted due to Python version incompatibility")
+        print("\nPlease install Python 3.10.x:")
+        print("  Windows: https://www.python.org/downloads/release/python-31011/")
+        print("  Or use pyenv: pyenv install 3.10.11")
+        print("\nThen run setup again.")
+        sys.exit(1)
+
     print("This script will install all required dependencies.")
     print()
 
