@@ -14,6 +14,7 @@ from semantic_processor import SemanticProcessor, ContextManager
 from emotional_processor import EmotionalProcessor
 from vector_memory import VectorMemory
 from dynamic_responder import DynamicResponder
+from reasoning_engine import ReasoningEngine
 
 
 class CognitiveSystem:
@@ -33,6 +34,7 @@ class CognitiveSystem:
         self.vector_memory = VectorMemory(persist_directory=memory_dir)
         self.context_manager = ContextManager(self.semantic_processor)
         self.responder = DynamicResponder()
+        self.reasoning_engine = ReasoningEngine()
 
         # System state
         self.state_file = state_file
@@ -115,6 +117,21 @@ class CognitiveSystem:
 
         # 8. REASONING: Multi-hop reasoning for deeper understanding
         reasoning_paths = self._perform_reasoning(node_id)
+
+        # 8.5 INFERENCE: Generate inferences from memories and context
+        inferences = self._perform_inference(relevant_memories, user_input)
+
+        # 8.6 GAP DETECTION: Identify information gaps
+        information_gaps = self._identify_gaps(relevant_memories, user_input)
+
+        # 8.7 THOUGHT GENERATION & RECORDING: Create and save thoughts as memory
+        thought_nodes = self._generate_and_record_thoughts(
+            user_input,
+            relevant_memories,
+            inferences,
+            information_gaps,
+            node_id
+        )
 
         # 9. LEARNING: Update patterns and associations
         self._learn_patterns(user_input, relevant_memories)
@@ -282,6 +299,191 @@ class CognitiveSystem:
 
             # Keep only recent associations
             self.learned_associations[keyword] = self.learned_associations[keyword][-20:]
+
+    def _perform_inference(self, relevant_memories: List[Dict],
+                          current_context: str) -> List:
+        """
+        Perform advanced inference using the reasoning engine
+        This is where the AI truly thinks and makes connections
+        """
+        # Convert memories to format expected by reasoning engine
+        memory_list = [
+            {
+                'content': m['content'],
+                'id': m['id'],
+                'metadata': m.get('metadata', {})
+            }
+            for m in relevant_memories
+        ]
+
+        # Perform inference
+        inferences = self.reasoning_engine.perform_inference(
+            memories=memory_list,
+            current_context=current_context
+        )
+
+        return inferences
+
+    def _identify_gaps(self, relevant_memories: List[Dict],
+                      current_input: str) -> List:
+        """
+        Identify gaps in knowledge using the reasoning engine
+        """
+        memory_list = [
+            {
+                'content': m['content'],
+                'id': m['id'],
+                'metadata': m.get('metadata', {})
+            }
+            for m in relevant_memories
+        ]
+
+        # Identify information gaps
+        gaps = self.reasoning_engine.identify_information_gaps(
+            memories=memory_list,
+            current_input=current_input
+        )
+
+        return gaps
+
+    def _generate_and_record_thoughts(self, user_input: str,
+                                      relevant_memories: List[Dict],
+                                      inferences: List,
+                                      information_gaps: List,
+                                      context_node_id: str) -> List[str]:
+        """
+        Generate thoughts from inferences and save them as memory nodes
+        This allows the AI to learn from its own thinking
+        """
+        thought_node_ids = []
+
+        # Generate thought from inferences
+        if inferences:
+            memory_list = [
+                {
+                    'content': m['content'],
+                    'id': m['id'],
+                    'metadata': m.get('metadata', {})
+                }
+                for m in relevant_memories
+            ]
+
+            thought_text = self.reasoning_engine.generate_thought(
+                context=user_input,
+                memories=memory_list,
+                inferences=inferences
+            )
+
+            if thought_text:
+                # Create thought node
+                thought_id = f"thought_{self.turn_count}_{uuid.uuid4().hex[:8]}"
+                thought_embedding = self.semantic_processor.encode(thought_text)
+
+                thought_node = MemoryNode(
+                    id=thought_id,
+                    content=thought_text,
+                    embedding=thought_embedding,
+                    timestamp=datetime.now(),
+                    emotional_valence={},
+                    metadata={
+                        'type': 'thought',
+                        'role': 'internal',
+                        'reasoning_type': inferences[0].reasoning_type if inferences else 'general',
+                        'confidence': inferences[0].confidence if inferences else 0.5,
+                        'turn': self.turn_count,
+                        'conversation_id': self.conversation_id
+                    }
+                )
+                self.brain.add_node(thought_node)
+
+                # Store in vector memory (semantic memory for thoughts)
+                self.vector_memory.store_semantic(
+                    content=thought_text,
+                    embedding=thought_embedding,
+                    metadata={
+                        'type': 'thought',
+                        'role': 'internal',
+                        'reasoning_type': inferences[0].reasoning_type if inferences else 'general',
+                        'confidence': inferences[0].confidence if inferences else 0.5,
+                        'turn': self.turn_count
+                    },
+                    memory_id=thought_id
+                )
+
+                # Create edges from premises to thought (causal edges)
+                if inferences and hasattr(inferences[0], 'premise_ids'):
+                    for premise_id in inferences[0].premise_ids:
+                        # Check if premise node exists
+                        if self.brain.get_node(premise_id):
+                            edge = CognitiveEdge(
+                                source_id=premise_id,
+                                target_id=thought_id,
+                                edge_type=EdgeType.CAUSAL,
+                                strength=inferences[0].confidence
+                            )
+                            self.brain.add_edge(edge)
+
+                # Connect thought to current context
+                context_edge = CognitiveEdge(
+                    source_id=context_node_id,
+                    target_id=thought_id,
+                    edge_type=EdgeType.CONTEXTUAL,
+                    strength=0.8
+                )
+                self.brain.add_edge(context_edge)
+
+                thought_node_ids.append(thought_id)
+
+        # Record information gaps as thoughts
+        if information_gaps:
+            for gap in information_gaps[:2]:  # Top 2 gaps
+                gap_thought = f"Information gap: {gap.question}"
+                gap_id = f"gap_{self.turn_count}_{uuid.uuid4().hex[:8]}"
+                gap_embedding = self.semantic_processor.encode(gap_thought)
+
+                gap_node = MemoryNode(
+                    id=gap_id,
+                    content=gap_thought,
+                    embedding=gap_embedding,
+                    timestamp=datetime.now(),
+                    emotional_valence={},
+                    metadata={
+                        'type': 'information_gap',
+                        'role': 'internal',
+                        'topic': gap.topic,
+                        'importance': gap.importance,
+                        'turn': self.turn_count,
+                        'conversation_id': self.conversation_id
+                    }
+                )
+                self.brain.add_node(gap_node)
+
+                # Store in vector memory
+                self.vector_memory.store_semantic(
+                    content=gap_thought,
+                    embedding=gap_embedding,
+                    metadata={
+                        'type': 'information_gap',
+                        'role': 'internal',
+                        'topic': gap.topic,
+                        'importance': gap.importance,
+                        'turn': self.turn_count
+                    },
+                    memory_id=gap_id
+                )
+
+                # Connect to context
+                gap_edge = CognitiveEdge(
+                    source_id=context_node_id,
+                    target_id=gap_id,
+                    edge_type=EdgeType.CONTEXTUAL,
+                    strength=gap.importance
+                )
+                self.brain.add_edge(gap_edge)
+
+                thought_node_ids.append(gap_id)
+
+        return thought_node_ids
 
     def _generate_response(self, user_input: str,
                           input_embedding: np.ndarray,
