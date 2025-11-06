@@ -320,10 +320,10 @@ class DynamicResponder:
     def _reference_memory(self, memory_content: str) -> str:
         """Reference a memory naturally"""
         templates = [
-            f"You mentioned earlier: \"{memory_content[:60]}...\"",
-            f"I remember you said \"{memory_content[:60]}...\"",
-            f"Earlier you told me \"{memory_content[:60]}...\"",
-            f"This connects to when you said \"{memory_content[:60]}...\"",
+            f"You mentioned earlier: \"{memory_content}\"",
+            f"I remember you said \"{memory_content}\"",
+            f"Earlier you told me \"{memory_content}\"",
+            f"This connects to when you said \"{memory_content}\"",
         ]
         return random.choice(templates)
 
@@ -481,7 +481,7 @@ class DynamicResponder:
             for conn in understanding['memory_connections'][:1]:
                 if any(kw in conn['content'].lower()
                       for kw in understanding.get('keywords', [])[:2]):
-                    memory_ref = f"This connects to when you mentioned \"{conn['content'][:50]}...\""
+                    memory_ref = f"This connects to when you mentioned \"{conn['content']}\""
                     response_parts.insert(1, memory_ref)
                     break
 
