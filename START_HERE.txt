@@ -1,0 +1,55 @@
+================================================================
+Brain-Inspired Conversational AI - Quick Start Guide
+================================================================
+
+SETUP IS COMPLETE! Python 3.10.11 is installed and all
+dependencies are ready.
+
+================================================================
+HOW TO START THE AI:
+================================================================
+
+Option 1 (Easiest):
+  → Double-click: run_chat.bat
+
+Option 2 (Command Line):
+  → py -3.10 chat.py
+
+================================================================
+IMPORTANT LOCATIONS:
+================================================================
+
+Python 3.10.11 installed at:
+  C:\Users\dbiss\AppData\Local\Programs\Python\Python310\python.exe
+
+Project location:
+  C:\Users\dbiss\Desktop\Projects\testmore
+
+================================================================
+AVAILABLE COMMANDS IN CHAT:
+================================================================
+
+/help     - Show all commands
+/stats    - System statistics
+/memory   - Memory information
+/graph    - Cognitive graph details
+/reset    - Start new conversation
+/quit     - Exit
+
+================================================================
+FEATURES:
+================================================================
+
+✓ Multi-graph cognitive architecture
+✓ Persistent memory (remembers everything)
+✓ Emotional understanding
+✓ Context-aware responses
+✓ Pattern learning
+✓ 8 types of cognitive connections
+
+================================================================
+ENJOY YOUR AI EXPERIENCE!
+================================================================
+
+For more info: See README.md
+Repository: https://github.com/FatStinkyPanda/AI-Chat-Test

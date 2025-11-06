@@ -63,6 +63,31 @@ class VectorMemory:
                 metadata={"hnsw:space": "cosine"}
             )
 
+    def _flatten_metadata(self, metadata: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Flatten nested dictionaries for ChromaDB compatibility.
+        ChromaDB only accepts str, int, float, or bool values in metadata.
+        """
+        flattened = {}
+        for key, value in metadata.items():
+            if isinstance(value, dict):
+                # Flatten nested dict: {'emotions': {'joy': 0.5}} -> {'emotions_joy': 0.5}
+                for nested_key, nested_value in value.items():
+                    flat_key = f"{key}_{nested_key}"
+                    if isinstance(nested_value, (str, int, float, bool)):
+                        flattened[flat_key] = nested_value
+                    else:
+                        flattened[flat_key] = str(nested_value)
+            elif isinstance(value, (str, int, float, bool)):
+                flattened[key] = value
+            elif value is None:
+                flattened[key] = ""
+            else:
+                # Convert other types to string
+                flattened[key] = str(value)
+
+        return flattened
+
     def store_episode(self, content: str, embedding: np.ndarray,
                      metadata: Optional[Dict[str, Any]] = None,
                      memory_id: Optional[str] = None) -> str:
@@ -77,6 +102,9 @@ class VectorMemory:
 
         metadata['timestamp'] = metadata.get('timestamp', datetime.now().isoformat())
         metadata['memory_type'] = 'episodic'
+
+        # Flatten nested dictionaries for ChromaDB compatibility
+        metadata = self._flatten_metadata(metadata)
 
         self.episodic_memory.add(
             embeddings=[embedding.tolist()],
@@ -101,6 +129,9 @@ class VectorMemory:
 
         metadata['timestamp'] = metadata.get('timestamp', datetime.now().isoformat())
         metadata['memory_type'] = 'semantic'
+
+        # Flatten nested dictionaries for ChromaDB compatibility
+        metadata = self._flatten_metadata(metadata)
 
         self.semantic_memory.add(
             embeddings=[embedding.tolist()],
@@ -127,6 +158,9 @@ class VectorMemory:
         metadata['timestamp'] = metadata.get('timestamp', datetime.now().isoformat())
         metadata['memory_type'] = 'emotional'
         metadata.update({f'emotion_{k}': v for k, v in emotional_data.items()})
+
+        # Flatten nested dictionaries for ChromaDB compatibility
+        metadata = self._flatten_metadata(metadata)
 
         self.emotional_memory.add(
             embeddings=[embedding.tolist()],
