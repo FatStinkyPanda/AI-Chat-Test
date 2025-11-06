@@ -15,6 +15,7 @@ from emotional_processor import EmotionalProcessor
 from vector_memory import VectorMemory
 from dynamic_responder import DynamicResponder
 from reasoning_engine import ReasoningEngine
+from deliberation_engine import DeliberationEngine
 
 
 class CognitiveSystem:
@@ -35,6 +36,7 @@ class CognitiveSystem:
         self.context_manager = ContextManager(self.semantic_processor)
         self.responder = DynamicResponder()
         self.reasoning_engine = ReasoningEngine()
+        self.deliberation_engine = DeliberationEngine(self.reasoning_engine)
 
         # System state
         self.state_file = state_file
@@ -118,31 +120,49 @@ class CognitiveSystem:
         # 8. REASONING: Multi-hop reasoning for deeper understanding
         reasoning_paths = self._perform_reasoning(node_id)
 
-        # 8.5 INFERENCE: Generate inferences from memories and context
+        # 8.5 INFERENCE: Generate initial inferences from memories and context
         inferences = self._perform_inference(relevant_memories, user_input)
 
-        # 8.6 GAP DETECTION: Identify information gaps
+        # 8.6 GAP DETECTION: Identify initial information gaps
         information_gaps = self._identify_gaps(relevant_memories, user_input)
 
-        # 8.7 THOUGHT GENERATION & RECORDING: Create and save thoughts as memory
-        thought_nodes = self._generate_and_record_thoughts(
-            user_input,
-            relevant_memories,
-            inferences,
-            information_gaps,
-            node_id
+        # 8.7 DELIBERATION: Think iteratively and decide when ready to respond
+        # This is where the AI truly thinks for itself
+        print(f"\n{'='*60}")
+        print("AI is thinking about what to say...")
+        print(f"{'='*60}")
+
+        deliberation_result = self.deliberation_engine.deliberate(
+            user_input=user_input,
+            relevant_memories=relevant_memories,
+            initial_inferences=inferences,
+            initial_gaps=information_gaps,
+            emotional_context=input_emotions
+        )
+
+        print(f"\n{'='*60}")
+        print(f"AI has completed thinking and is ready to respond")
+        print(f"Reason: {deliberation_result.stopping_reason}")
+        print(f"Confidence: {deliberation_result.final_confidence:.2f}")
+        print(f"{'='*60}\n")
+
+        # 8.8 THOUGHT RECORDING: Save deliberation thoughts as memory
+        thought_nodes = self._record_deliberation_thoughts(
+            deliberation_result=deliberation_result,
+            context_node_id=node_id
         )
 
         # 9. LEARNING: Update patterns and associations
         self._learn_patterns(user_input, relevant_memories)
 
-        # 10. GENERATION: Generate response
+        # 10. GENERATION: Generate response based on deliberation
         response = self._generate_response(
             user_input,
             input_embedding,
             input_emotions,
             relevant_memories,
-            reasoning_paths
+            reasoning_paths,
+            deliberation_result  # Pass deliberation results
         )
 
         # 11. STORE RESPONSE
@@ -346,142 +366,108 @@ class CognitiveSystem:
 
         return gaps
 
-    def _generate_and_record_thoughts(self, user_input: str,
-                                      relevant_memories: List[Dict],
-                                      inferences: List,
-                                      information_gaps: List,
+    def _record_deliberation_thoughts(self, deliberation_result,
                                       context_node_id: str) -> List[str]:
         """
-        Generate thoughts from inferences and save them as memory nodes
-        This allows the AI to learn from its own thinking
+        Record thoughts from deliberation process as memory nodes
+        This allows the AI to learn from its own thinking process
         """
         thought_node_ids = []
 
-        # Generate thought from inferences
-        if inferences:
-            memory_list = [
-                {
-                    'content': m['content'],
-                    'id': m['id'],
-                    'metadata': m.get('metadata', {})
-                }
-                for m in relevant_memories
-            ]
+        # Record key insights from deliberation
+        for i, insight in enumerate(deliberation_result.key_insights):
+            thought_id = f"thought_{self.turn_count}_{i}_{uuid.uuid4().hex[:8]}"
+            thought_embedding = self.semantic_processor.encode(insight)
 
-            thought_text = self.reasoning_engine.generate_thought(
-                context=user_input,
-                memories=memory_list,
-                inferences=inferences
+            thought_node = MemoryNode(
+                id=thought_id,
+                content=insight,
+                embedding=thought_embedding,
+                timestamp=datetime.now(),
+                emotional_valence={},
+                metadata={
+                    'type': 'deliberation_thought',
+                    'role': 'internal',
+                    'confidence': deliberation_result.final_confidence,
+                    'iterations': deliberation_result.total_iterations,
+                    'turn': self.turn_count,
+                    'conversation_id': self.conversation_id
+                }
+            )
+            self.brain.add_node(thought_node)
+
+            # Store in vector memory (semantic memory for thoughts)
+            self.vector_memory.store_semantic(
+                content=insight,
+                embedding=thought_embedding,
+                metadata={
+                    'type': 'deliberation_thought',
+                    'role': 'internal',
+                    'confidence': deliberation_result.final_confidence,
+                    'iterations': deliberation_result.total_iterations,
+                    'turn': self.turn_count
+                },
+                memory_id=thought_id
             )
 
-            if thought_text:
-                # Create thought node
-                thought_id = f"thought_{self.turn_count}_{uuid.uuid4().hex[:8]}"
-                thought_embedding = self.semantic_processor.encode(thought_text)
+            # Connect thought to current context
+            context_edge = CognitiveEdge(
+                source_id=context_node_id,
+                target_id=thought_id,
+                edge_type=EdgeType.CONTEXTUAL,
+                strength=deliberation_result.final_confidence
+            )
+            self.brain.add_edge(context_edge)
 
-                thought_node = MemoryNode(
-                    id=thought_id,
-                    content=thought_text,
-                    embedding=thought_embedding,
-                    timestamp=datetime.now(),
-                    emotional_valence={},
-                    metadata={
-                        'type': 'thought',
-                        'role': 'internal',
-                        'reasoning_type': inferences[0].reasoning_type if inferences else 'general',
-                        'confidence': inferences[0].confidence if inferences else 0.5,
-                        'turn': self.turn_count,
-                        'conversation_id': self.conversation_id
-                    }
-                )
-                self.brain.add_node(thought_node)
+            thought_node_ids.append(thought_id)
 
-                # Store in vector memory (semantic memory for thoughts)
-                self.vector_memory.store_semantic(
-                    content=thought_text,
-                    embedding=thought_embedding,
-                    metadata={
-                        'type': 'thought',
-                        'role': 'internal',
-                        'reasoning_type': inferences[0].reasoning_type if inferences else 'general',
-                        'confidence': inferences[0].confidence if inferences else 0.5,
-                        'turn': self.turn_count
-                    },
-                    memory_id=thought_id
-                )
+        # Record the deliberation process summary
+        if deliberation_result.total_iterations > 1:
+            summary = (f"Deliberated for {deliberation_result.total_iterations} iterations. "
+                      f"{deliberation_result.stopping_reason}")
 
-                # Create edges from premises to thought (causal edges)
-                if inferences and hasattr(inferences[0], 'premise_ids'):
-                    for premise_id in inferences[0].premise_ids:
-                        # Check if premise node exists
-                        if self.brain.get_node(premise_id):
-                            edge = CognitiveEdge(
-                                source_id=premise_id,
-                                target_id=thought_id,
-                                edge_type=EdgeType.CAUSAL,
-                                strength=inferences[0].confidence
-                            )
-                            self.brain.add_edge(edge)
+            summary_id = f"deliberation_{self.turn_count}_{uuid.uuid4().hex[:8]}"
+            summary_embedding = self.semantic_processor.encode(summary)
 
-                # Connect thought to current context
-                context_edge = CognitiveEdge(
-                    source_id=context_node_id,
-                    target_id=thought_id,
-                    edge_type=EdgeType.CONTEXTUAL,
-                    strength=0.8
-                )
-                self.brain.add_edge(context_edge)
+            summary_node = MemoryNode(
+                id=summary_id,
+                content=summary,
+                embedding=summary_embedding,
+                timestamp=datetime.now(),
+                emotional_valence={},
+                metadata={
+                    'type': 'deliberation_summary',
+                    'role': 'internal',
+                    'readiness_score': deliberation_result.readiness_score,
+                    'turn': self.turn_count,
+                    'conversation_id': self.conversation_id
+                }
+            )
+            self.brain.add_node(summary_node)
 
-                thought_node_ids.append(thought_id)
+            # Store in semantic memory
+            self.vector_memory.store_semantic(
+                content=summary,
+                embedding=summary_embedding,
+                metadata={
+                    'type': 'deliberation_summary',
+                    'role': 'internal',
+                    'readiness_score': deliberation_result.readiness_score,
+                    'turn': self.turn_count
+                },
+                memory_id=summary_id
+            )
 
-        # Record information gaps as thoughts
-        if information_gaps:
-            for gap in information_gaps[:2]:  # Top 2 gaps
-                gap_thought = f"Information gap: {gap.question}"
-                gap_id = f"gap_{self.turn_count}_{uuid.uuid4().hex[:8]}"
-                gap_embedding = self.semantic_processor.encode(gap_thought)
+            # Connect to context
+            summary_edge = CognitiveEdge(
+                source_id=context_node_id,
+                target_id=summary_id,
+                edge_type=EdgeType.PROCEDURAL,
+                strength=0.7
+            )
+            self.brain.add_edge(summary_edge)
 
-                gap_node = MemoryNode(
-                    id=gap_id,
-                    content=gap_thought,
-                    embedding=gap_embedding,
-                    timestamp=datetime.now(),
-                    emotional_valence={},
-                    metadata={
-                        'type': 'information_gap',
-                        'role': 'internal',
-                        'topic': gap.topic,
-                        'importance': gap.importance,
-                        'turn': self.turn_count,
-                        'conversation_id': self.conversation_id
-                    }
-                )
-                self.brain.add_node(gap_node)
-
-                # Store in vector memory
-                self.vector_memory.store_semantic(
-                    content=gap_thought,
-                    embedding=gap_embedding,
-                    metadata={
-                        'type': 'information_gap',
-                        'role': 'internal',
-                        'topic': gap.topic,
-                        'importance': gap.importance,
-                        'turn': self.turn_count
-                    },
-                    memory_id=gap_id
-                )
-
-                # Connect to context
-                gap_edge = CognitiveEdge(
-                    source_id=context_node_id,
-                    target_id=gap_id,
-                    edge_type=EdgeType.CONTEXTUAL,
-                    strength=gap.importance
-                )
-                self.brain.add_edge(gap_edge)
-
-                thought_node_ids.append(gap_id)
+            thought_node_ids.append(summary_id)
 
         return thought_node_ids
 
@@ -489,10 +475,12 @@ class CognitiveSystem:
                           input_embedding: np.ndarray,
                           input_emotions: Dict[EmotionalValence, float],
                           relevant_memories: List[Dict],
-                          reasoning_paths: List[List[MemoryNode]]) -> str:
+                          reasoning_paths: List[List[MemoryNode]],
+                          deliberation_result=None) -> str:
         """
         Generate a response based on all cognitive processes
         Uses dynamic responder for natural, intelligent conversation
+        Now includes deliberation results from autonomous thinking
         """
         # Use the dynamic responder to construct a natural response
         response = self.responder.construct_response(
@@ -500,7 +488,8 @@ class CognitiveSystem:
             relevant_memories=relevant_memories,
             input_emotions=input_emotions,
             reasoning_paths=reasoning_paths,
-            turn_count=self.turn_count
+            turn_count=self.turn_count,
+            deliberation_result=deliberation_result  # Pass deliberation insights
         )
 
         return response

@@ -23,9 +23,11 @@ class DynamicResponder:
                           relevant_memories: List[Dict],
                           input_emotions: Dict,
                           reasoning_paths: List,
-                          turn_count: int) -> str:
+                          turn_count: int,
+                          deliberation_result=None) -> str:
         """
         Dynamically construct a response by analyzing and understanding the input
+        Now uses deliberation results from autonomous thinking
         """
         # Understand what the user is communicating
         intent, confidence = self.intent_detector.detect_intent(user_input)
@@ -40,6 +42,17 @@ class DynamicResponder:
             emotions=input_emotions,
             reasoning=reasoning_paths
         )
+
+        # Add deliberation insights to understanding
+        if deliberation_result:
+            understanding['deliberation'] = {
+                'insights': deliberation_result.key_insights,
+                'confidence': deliberation_result.final_confidence,
+                'direction': deliberation_result.response_direction,
+                'iterations': deliberation_result.total_iterations
+            }
+        else:
+            understanding['deliberation'] = None
 
         # Construct response from understanding
         response = self._construct_from_understanding(
@@ -93,7 +106,13 @@ class DynamicResponder:
                                     turn_count: int) -> str:
         """
         Construct response by thinking through the understanding
+        Now uses deliberation insights to guide response
         """
+
+        # If we have deliberation insights, use them to guide the response
+        if understanding.get('deliberation') and understanding['deliberation']['insights']:
+            return self._respond_with_deliberation(understanding, intent, turn_count)
+
         # Start building response components
         components = []
 
@@ -334,3 +353,139 @@ class DynamicResponder:
             "I'm considering different angles on this.",
             "That requires some thought.",
         ])
+
+    def _respond_with_deliberation(self, understanding: Dict,
+                                   intent: IntentType,
+                                   turn_count: int) -> str:
+        """
+        Construct response using deliberation insights
+        This is the AI's response after thinking autonomously
+        """
+
+        delib = understanding['deliberation']
+        insights = delib['insights']
+        confidence = delib['confidence']
+        direction = delib['direction']
+
+        response_parts = []
+
+        # Choose opening based on confidence and direction
+        if direction == "share_insights" and confidence > 0.7:
+            # High confidence - share what we learned
+            opening = random.choice([
+                "I've thought about this, and",
+                "After considering this,",
+                "Thinking through what you said,",
+            ])
+
+            response_parts.append(opening)
+
+            # Share the main insight
+            if insights:
+                main_insight = insights[0]
+                # Make it conversational
+                if main_insight.startswith("Given"):
+                    response_parts.append(main_insight.lower())
+                elif main_insight.startswith("Considering"):
+                    response_parts.append(main_insight)
+                else:
+                    response_parts.append(f"I notice that {main_insight.lower()}")
+
+        elif direction == "ask_questions":
+            # We identified gaps - ask thoughtfully
+            opening = random.choice([
+                "I'm curious to understand more.",
+                "To think about this properly,",
+                "This is interesting, and",
+            ])
+
+            response_parts.append(opening)
+
+            # Formulate question
+            keywords = understanding['keywords']
+            if keywords:
+                question = f"Could you tell me more about {keywords[0]}?"
+            else:
+                question = "What aspects are most important to you?"
+
+            response_parts.append(question)
+
+        elif direction == "empathetic_response":
+            # Emotional context - respond with understanding
+            emotion = understanding.get('dominant_emotion', 'neutral')
+
+            if emotion in ['joy', 'surprise']:
+                opening = "I sense the positive energy in what you're saying."
+            elif emotion in ['sadness', 'fear', 'anger']:
+                opening = "I hear that this matters to you."
+            else:
+                opening = "I'm listening carefully."
+
+            response_parts.append(opening)
+
+            # Add insight if relevant
+            if insights and any(keyword in insights[0].lower()
+                              for keyword in understanding.get('keywords', [])[:2]):
+                response_parts.append(insights[0])
+
+        elif direction == "share_understanding":
+            # Our understanding improved through thinking
+            opening = random.choice([
+                "Let me share my thinking.",
+                "Here's what makes sense to me.",
+                "After reflecting on this,",
+            ])
+
+            response_parts.append(opening)
+
+            # Share our developing understanding
+            if len(insights) >= 2:
+                response_parts.append(f"{insights[0]} {insights[1]}")
+            elif insights:
+                response_parts.append(insights[0])
+
+        else:  # natural_engagement
+            # Default: engage naturally with what we learned
+            if confidence > 0.6:
+                opening = random.choice([
+                    "That's an interesting point.",
+                    "I'm thinking about what you said.",
+                    "You've given me something to consider.",
+                ])
+            else:
+                opening = random.choice([
+                    "I'm working through this.",
+                    "Let me think about this with you.",
+                    "This deserves some thought.",
+                ])
+
+            response_parts.append(opening)
+
+            # Add an insight or observation
+            if insights:
+                # Make insight conversational
+                insight = insights[0]
+                if "Response approach:" in insight:
+                    # Skip meta-insights
+                    if len(insights) > 1:
+                        response_parts.append(insights[1])
+                else:
+                    response_parts.append(insight)
+
+            # Maybe ask for their perspective
+            if confidence < 0.7:
+                response_parts.append("What's your take on this?")
+
+        # Handle memory connections if present
+        if understanding['memory_connections']:
+            for conn in understanding['memory_connections'][:1]:
+                if any(kw in conn['content'].lower()
+                      for kw in understanding.get('keywords', [])[:2]):
+                    memory_ref = f"This connects to when you mentioned \"{conn['content'][:50]}...\""
+                    response_parts.insert(1, memory_ref)
+                    break
+
+        # Join response parts naturally
+        response = " ".join(response_parts)
+
+        return response
